@@ -8,13 +8,21 @@ typedef struct {
 } Paddle;
 
 void PaddleStart(AppContext* _app, Entity* _entity) {
-    _entity->color = InitVector4(1.0f, 1.0f, 1.0f, 1.0f);
+    //_entity->color = InitVector4(1.0f, 1.0f, 1.0f, 1.0f);
     _entity->transform.rotation = 0.0f;
     _entity->transform.scale = InitVector3(32.0f, 128.0f, 1.0f);
 }
 
 void PaddleUpdate(AppContext* _app, Entity* _entity) {
-
+    
+    if (GetKey(_app, _entity->upKeys))
+    {
+        _entity->transform.position.y += 1.0f;
+    }
+    else if (GetKey(_app, _entity->downKeys))
+    {
+        _entity->transform.position.y -= 1.0f;
+    }
 }
 
 void PaddleDraw(AppContext* _app, Entity* _entity) {

@@ -8,5 +8,5 @@ uniform float TIME;
 
 void main()
 {
-   FragColor = texture(MAIN_TEXTURE, TexCoord) * COLOR;// * vec4(ourColor, 1.0);
+   FragColor = texture(MAIN_TEXTURE, vec2(TexCoord.x + TIME * 0.2, TexCoord.y - TIME * 0.2)) * COLOR;// * vec4(ourColor, 1.0);
 }

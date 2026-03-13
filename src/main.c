@@ -19,18 +19,20 @@
 #include "cpup/model.h"
 #include "cpup/shader.h"
 #include "cpup/window.h"
+#include "cpup/inputmanager.h"
 
 #include "cpup/scene.h"
 
 #include "ball.h"
 #include "paddle.h"
+#include "notball.h"
 
 AppContext app;
 
 int main(int argc, char *argv[])
 {
     srand(time(NULL));
-    
+
     if (InitCanis() > 0)
         return 1;
 
@@ -41,15 +43,20 @@ int main(int argc, char *argv[])
         return 1;
 
     Scene* scene = SceneInit();
+    app.scene = scene;
     
     Image iconImage = IOLoadImage("assets/textures/canis_engine_icon.tga");
     Image containerImage = IOLoadImage("assets/textures/container.tga");
     Image circleImage = IOLoadImage("assets/textures/circle.tga");
     Image squareImage = IOLoadImage("assets/textures/square.tga");
+    Image gridImage = IOLoadImage("assets/textures/grid.tga");
     
     // build and compile our shader program
     u32 shaderProgram = GenerateShaderFromFiles("assets/shaders/logo.vs", "assets/shaders/logo.fs");
     printf("shaderID: %i\n", shaderProgram);
+
+    u32 backgroundShaderProgram = GenerateShaderFromFiles("assets/shaders/background.vs", "assets/shaders/background.fs");
+    printf("background shaderID: %i\n", backgroundShaderProgram);
 
     float ve[] = {
         // positions            // texture coords
@@ -71,6 +78,16 @@ int main(int argc, char *argv[])
     
     Model model = BuildModel(&vertices, &indices, STATIC_DRAW);
 
+    Entity* background = Spawn(&scene);
+    background-> transform.position = InitVector3(app.windowWidth * 0.5f, app.windowHeight * 0.5f, -1.0f);
+    background->transform.scale = InitVector3(app.windowWidth, app.windowHeight, 0.0f);
+    background->color = InitVector4(0.2f, 0.2f, 0.2f, 1.0f);
+    background->data = calloc(1, sizeof(Ball));
+    background->image = &gridImage;
+    background->model = &model;
+    background->shaderId = backgroundShaderProgram;
+    background->Draw = BallDraw;
+
     Entity* ball = Spawn(&scene);
     ball->transform.position = InitVector3(app.windowWidth * 0.5f, app.windowHeight * 0.5f, 0.0f);
     ball->data = calloc(1, sizeof(Ball));
@@ -82,12 +99,28 @@ int main(int argc, char *argv[])
     ball->Draw = BallDraw;
     ball->OnDestroy = BallOnDestroy;
 
+    Entity* notball = Spawn(&scene);
+    notball->transform.position = InitVector3(app.windowWidth * 0.0f, app.windowHeight * 0.0f, 0.0f);
+    notball->name = "notball";
+    notball->data = calloc(1, sizeof(NotBall));
+    notball->image = &circleImage;
+    notball->model = &model;
+    notball->shaderId = shaderProgram;
+    notball->Start = NotBallStart;
+    notball->Update = NotBallUpdate;
+    notball->Draw = NotBallDraw;
+    notball->OnDestroy = BallOnDestroy;
+
     Entity* leftPaddle = Spawn(&scene);
     leftPaddle->transform.position = InitVector3(16.0f, app.windowHeight * 0.5f, 0.0f);
     leftPaddle->data = calloc(1, sizeof(Paddle));
     leftPaddle->image = &squareImage;
     leftPaddle->model = &model;
     leftPaddle->shaderId = shaderProgram;
+    leftPaddle->color = InitVector4(1.0f, 0.2f, 0.2f, 1.0f);
+    leftPaddle->upKeys = SDL_SCANCODE_W;
+    leftPaddle->downKeys = SDL_SCANCODE_S;
+    leftPaddle->name = "leftPaddle";
     leftPaddle->Start = PaddleStart;
     leftPaddle->Update = PaddleUpdate;
     leftPaddle->Draw = PaddleDraw;
@@ -99,34 +132,30 @@ int main(int argc, char *argv[])
     rightPaddle->image = &squareImage;
     rightPaddle->model = &model;
     rightPaddle->shaderId = shaderProgram;
+    rightPaddle->color = InitVector4(0.2f, 0.2f, 1.0f, 1.0f);
+    rightPaddle->upKeys = SDL_SCANCODE_UP;
+    rightPaddle->downKeys = SDL_SCANCODE_DOWN;
+    rightPaddle->name = "rightPaddle";
     rightPaddle->Start = PaddleStart;
     rightPaddle->Update = PaddleUpdate;
     rightPaddle->Draw = PaddleDraw;
     rightPaddle->OnDestroy = PaddleOnDestroy;
+
+    //((Ball*)ball->data)->leftPaddle = leftPaddle;
+    //((Ball*)ball->data)->rightPaddle = rightPaddle;
     
     bool running = true;
     f32 time = 0.0f;
     while(running) {
         // imput
+        InputManagerNewFrame(&app);
+        //printf("FPS: %f Entity Count: %i\n", 1.0f/app.deltaTime, vec_count(&scene->entities));
+
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
             if (event.type == SDL_EVENT_QUIT)
                 running = false;
-            if (event.type == SDL_EVENT_KEY_UP)
-            {
-                if (event.key.scancode == SDL_SCANCODE_R)
-                {
-                    printf("Load new shader!\n");
-                    u32 newShader = GenerateShaderFromFiles("assets/shaders/logo.vs", "assets/shaders/logo.fs");
-
-                    if (newShader != 0)
-                    {
-                        DeleteShader(shaderProgram);
-                        shaderProgram = newShader;
-                    }
-                }
-            }
         }
 
         // render
@@ -142,6 +171,7 @@ int main(int argc, char *argv[])
         app.projection = Mat4Orthographic(0.0f, (float)app.windowWidth, 0.0f, (float)app.windowHeight, 0.001f, 100.0f); 
         app.view = IdentityMatrix4(); 
         Mat4Translate(&app.view, InitVector3(0.0f, 0.0f, -0.5f));
+
 
         SceneUpdate(&app, &scene);
 
